@@ -10,7 +10,7 @@ extend google.protobuf.FileOptions {
   optional string rib_api_service = 10001;
 }
 
-option (rib_api_service) = "1.1.0"; // RibApi service version, returned through the GetVersion RPC
+option (rib_api_service) = "1.2.0"; // RibApi service version, returned through the GetVersion RPC
 
 service RibApi {
   rpc Modify(stream ModifyRequest) returns (stream ModifyResponse);
@@ -120,13 +120,23 @@ message RouteTableEntryKey {
   optional uint32 preference = 2;            // Key; this is ordering preference for
                                              // multiple routes with same prefix for
                                              // ordering within the RIB-API module
+  optional string service_name = 3;          // if specified, then must match configured VPRN
+                                             // if not specified, operation applies to Base router
 }
 message RouteTableEntry {
   optional RouteTableEntryKey entry_key = 1; // Route entry key
   optional uint32 rtm_preference = 2;        // This is preference to use when installing
                                              // in RTM; valid values are 0 - 255 (byte)
   optional uint32 metric = 3;                // Configured tunnel metric to use
-  optional string tunnel_next_hop = 4;       // Tunnel destination IP address
+  oneof next_hop {
+    string tunnel_next_hop = 4;              // Tunnel destination IP address
+    bool follow_resolution = 5;              // Forward matching traffic according to
+                                             // the next-most-specific route in the FIB
+  }
+  optional uint32 source_class = 6;          // Class tagged to packets whose source IP
+                                             // address matches the route
+  optional uint32 destination_class = 7;     // Class tagged to packets whose destination
+                                             // IP address matches the route
 }
 
 ////////////////////////// Tunnel Table //////////////////////////
@@ -137,7 +147,7 @@ message NextHopGroup {
                                              // Optional if there is only one nexthop group
   optional NextHop primary = 3;              // Primary nexthop attributes
   optional NextHop backup = 4;               // Backup nexthop attributes
-  }
+}
 
 message NextHop {
   optional string ip_address = 1;            // Ipv4 or Ipv6 address
